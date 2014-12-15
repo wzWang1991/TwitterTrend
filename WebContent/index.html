@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Standard Meta -->
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
+    <!-- Site Properities -->
+    <title>Twitter Sentiment and Trend</title>
+
+    <link rel="stylesheet" type="text/css" href="dist/semantic.min.css">
+    <link rel="stylesheet" type="text/css" href="dist/jqcloud.css"/>
+    <link rel="stylesheet" type="text/css" href="dist/custom.css"/>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.js"></script>
+    <script type="text/javascript" src="dist/jqcloud-1.0.4.min.js"></script>
+    <script src="dist/semantic.min.js"></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+        var columnData = [];
+        var wordCloud = [];
+        $(document).ready(function () {
+            $.ajax({
+                type: "GET",
+                url: "getdata",
+                success: function (data) {
+                    var lineData = [];
+                    var d = new Date(2014, 11, 10, 15, 0, 0, 0);
+                    for (var i = 0; i < data.length; i++) {
+                        var sentiment = (data[i]['PositiveSum'] - data[i]['NegativeSum']) / (data[i]['PositiveSum'] + data[i]['NegativeSum']);
+                        sentiment = parseFloat(sentiment.toFixed(3));
+                        d.setHours(15 + i);
+                        lineData.push([d.getHours() + ":00", sentiment]);
+                        var wordCount = [];
+                        var wordCloudArray = [];
+                        for (var j = 0; j < data[i]['WordCounts'].length; j++) {
+                            var oneWord = data[i]['WordCounts'][j];
+                            wordCount.push([oneWord['Word'], oneWord['Count']]);
+                            var wordCloudDict = {};
+                            wordCloudDict['text'] = oneWord['Word'];
+                            wordCloudDict['weight'] = oneWord['Count'];
+                            wordCloudArray.push(wordCloudDict);
+                        }
+                        columnData.push(wordCount);
+                        wordCloud.push(wordCloudArray);
+                    }
+                    drawChart(lineData);
+                    drawColumn(0);
+                    $('#loader').hide("slow");
+                },
+                error: function () {
+                    console.log("Cannot connect to server.");
+                }
+            })
+        });
+    </script>
+    <script type="text/javascript">
+        google.load('visualization', '1', {packages: ['corechart']});
+
+        function drawChart(lineData) {
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'X');
+            data.addColumn('number', 'Sentiment');
+
+            data.addRows(lineData);
+
+            var options = {
+                height: 300,
+                title: 'Sentiment from 2014/12/10 15:00 to 2014/12/11 18:00',
+                hAxis: {
+                    title: 'Time'
+                },
+                vAxis: {
+                    title: 'Sentiment'
+                },
+                curveType: 'function'
+            };
+
+            var chart = new google.visualization.LineChart(
+                    document.getElementById('sentiment'));
+
+
+            chart.draw(data, options);
+            google.visualization.events.addListener(chart, 'select', selectHandler);
+            function selectHandler(e) {
+                drawColumn(chart.getSelection()['0'].row)
+            }
+        }
+
+        function drawColumn(num) {
+            $("#word_cloud").html("");
+            $("#word_cloud").jQCloud(wordCloud[num]);
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'X');
+            data.addColumn('number', 'Frequency');
+            data.addRows(columnData[num]);
+
+            var options = {
+                height: 300,
+                title: 'Word Frequency',
+                hAxis: {title: 'Word'}
+            };
+
+            var chart = new google.visualization.ColumnChart(document.getElementById('column_chart'));
+
+            chart.draw(data, options);
+
+
+        }
+
+    </script>
+
+</head>
+<body>
+
+<div class="ui menu">
+    <a class="active item">
+        <i class="home icon"></i> Home
+    </a>
+    <a class="item" href="#">
+        <i class="github icon"></i> Github
+    </a>
+</div>
+<div id="loader">
+	<div class="ui hidden clearing divider"></div>
+	<div class="ui segment">
+	  <div class="ui active inverted dimmer">
+	<div class="ui indeterminate text active loader">
+	  Preparing...
+	</div>
+	  </div>
+	  <br><br>
+	  <br><br>
+	  <br><br>
+	</div>
+</div>
+<div class="ui grid" id="datagrid">
+
+    <div class="row">
+        <div class="column">
+            <div id="sentiment"></div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="six wide column">
+            <div id="word_cloud"></div>
+        </div>
+        <div class="ten wide column">
+            <div id="column_chart"></div>
+        </div>
+    </div>
+</div>
+</body>
+
+</html>
